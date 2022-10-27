@@ -221,7 +221,7 @@ def generate_histogram(leaderboard_data, filtered_data, selected_sector, selecte
     if selected_sector:
         col = 's' + str(selected_sector) + '_delta'
     x_max = round(max(leaderboard[col]*2))/2
-    nbins = int(x_max*2)
+    nbins = int(x_max*2)+1
 
     if len(filtered_leaderboard) == 0:
         total_colors = nbins*[theme['on-layer-primary']]
