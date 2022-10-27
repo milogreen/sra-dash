@@ -1,0 +1,47 @@
+body {
+    margin: 0;
+    font-family: 'Helvetica';
+    background-color: #fdf6e3;
+    color: #657B83;
+    padding: 16px;
+}
+
+h1 {
+    font-size: 42px;
+    line-height: 50px;
+    margin-top: 16px;
+    margin-bottom: 32px;
+}
+
+label {
+    font-size: 12px;
+    line-height: 16px;
+    color: #93a1a1;
+}
+
+.Select-control {
+    margin-top: 8px;
+    margin-bottom: 4px;
+}
+
+.select-container {
+    margin-right: 16px;
+    max-width: 256px;
+}
+.Select-control, .Select-menu-outer, .Select-control.has-value {
+    background-color: #fdf6e3;
+    color: #657B83;
+    font-size: 14px;
+}
+.has-value.Select--single>.Select-control .Select-value .Select-value-label, .has-value.is-pseudo-focused.Select--single>.Select-control .Select-value .Select-value-label {
+    background-color: #fdf6e3;
+    color: #657B83;
+}
+
+.is-open > .Select-control {
+    background-color: #fdf6e3;
+}
+.js-plotly-plot {
+    margin-top: 48px;
+    margin-bottom:64px;
+}
