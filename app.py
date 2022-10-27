@@ -220,21 +220,18 @@ def generate_histogram(leaderboard_data, filtered_data, selected_sector, selecte
     col = 'lap_delta'
     if selected_sector:
         col = 's' + str(selected_sector) + '_delta'
+    x_max = math.ceil(max(leaderboard[col]*2))/2
+    nbins = int(x_max*2)
 
     if len(filtered_leaderboard) == 0:
-        x_max = math.ceil(max(leaderboard[col]*2))/2
-        nbins = int(x_max*2)
         total_colors = nbins*[theme['on-layer-primary']]
         filter_colors = nbins*[theme['on-layer-primary']]
         if selected_driver:
-            driver_delta = leaderboard[leaderboard['name']==selected_driver][col].values[0]
-            print(driver_delta)     
+            driver_delta = leaderboard[leaderboard['name']==selected_driver][col].values[0]  
             highlight_index = int(round(driver_delta*2))   
             total_colors[highlight_index] = theme['interactive']
 
     else:
-        x_max = math.ceil(max(filtered_leaderboard[col]*2))/2
-        nbins = int(x_max*2)
         total_colors = nbins*[theme['on-layer-secondary']]
         filter_colors = nbins*[theme['on-layer-primary']]
         if selected_driver:
