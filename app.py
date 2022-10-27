@@ -220,7 +220,7 @@ def generate_histogram(leaderboard_data, filtered_data, selected_sector, selecte
     col = 'lap_delta'
     if selected_sector:
         col = 's' + str(selected_sector) + '_delta'
-    x_max = math.ceil(max(leaderboard[col]*2))/2
+    x_max = round(max(leaderboard[col]*2))/2
     nbins = int(x_max*2)
 
     if len(filtered_leaderboard) == 0:
