@@ -15,8 +15,10 @@ theme = {
 }
 
 app.layout = html.Div(children=[
+    # Page title
     html.H1(children='SRA Leaderboard'),
     
+    # Select controls
     html.Div(children=[
         html.Div(children=[
             html.Label('Leaderboard'),
@@ -45,9 +47,19 @@ app.layout = html.Div(children=[
                 id='car-select',
             )
         ], className='select-container', style={'flex': 1}),
+        html.Div(children=[
+            html.Label('Driver'),
+            dcc.Dropdown(
+                id='driver-select',
+            )
+        ], className='select-container', style={'flex': 1}),
     ], style={'display': 'flex', 'flex-direction': 'row'}),
+
+    # Charts
     dcc.Graph(id='leaderboard-hist'),
     dcc.Graph(id='leaderboard-table'),
+
+    # Data
     dcc.Store(id='leaderboard-data'),
     dcc.Store(id='filtered-data')
 ])
@@ -102,21 +114,24 @@ def filter_data(leaderboard_data, selected_car, selected_sector):
     if selected_sector:
         col = 's' + str(selected_sector) + '_delta'
     
-    filtered_leaderboard['filter_delta'] = filtered_leaderboard[col] - min(filtered_leaderboard[col])
+    filtered_leaderboard.loc[:, 'filter_delta'] = filtered_leaderboard[col] - min(filtered_leaderboard[col])
     
     return filtered_leaderboard.to_json(orient='split')
 
 
-# Get options for car dropdown
+# Get options for dropdowns
 @app.callback(
     Output('car-select', 'options'),
-    Input('leaderboard-data', 'data')
+    Output('driver-select', 'options'),
+    Input('leaderboard-data', 'data'),
+    Input('filtered-data', 'data')
 )
-def set_car_options(leaderboard_data):
+def set_options(leaderboard_data, filtered_data):
     leaderboard = pd.read_json(leaderboard_data, orient='split')
-    options = leaderboard['car'].unique()
-
-    return options
+    filtered_leaderboard = pd.read_json(filtered_data, orient='split')
+    car_options = leaderboard['car'].unique()
+    driver_options = filtered_leaderboard['name'].unique()
+    return car_options, driver_options
 
 
 # Create table
