@@ -1,4 +1,6 @@
 import pandas as pd
+import math
+import numpy as np
 from dash import Dash, html, dcc, Input, Output
 import plotly.graph_objects as go
 import json
@@ -13,6 +15,7 @@ theme = {
     "on-bg-secondary": "#93a1a1",
     "on-layer-primary": "#586e75",
     "on-layer-secondary": "#839496",
+    "interactive": "#268bd2",
 }
 
 app.layout = html.Div(children=[
@@ -74,7 +77,7 @@ app.layout = html.Div(children=[
 )
 def get_leaderboard(selected_leaderboard, track="paul_ricard"):
     if selected_leaderboard == 'Hot Stint':
-        url = 'https://www.simracingalliance.com/leaderboards/hot_stint/' + track
+        url = 'https://www.simracingalliance.com/leaderboards/hot_stint/' + track + '/?unique_drivers=1'
     elif selected_leaderboard == 'Hot Lap':
         url = 'https://www.simracingalliance.com/leaderboards/hot_lap/' + track + '/?season=4'
     leaderboard = pd.read_html(url)[0]
@@ -158,8 +161,8 @@ def generate_table(filtered_data, leaderboard_data, selected_sector):
     leaderboard_table = go.Figure(
         data=go.Table(
             header=dict(
-                values=['Rank', 'Name', 'Sector 1', 'Sector 2', 'Sector 3', 'Lap time', 'Lap Delta', 'Filtered Delta'],
-                align=['left', 'left', 'right', 'right', 'right', 'right'],
+                values=['Rank', 'Name', 'Car', 'Sector 1', 'Sector 2', 'Sector 3', 'Lap time', 'Lap Delta', 'Filtered Delta'],
+                align=['left', 'left', 'left', 'right', 'right', 'right', 'right'],
                 fill_color=theme['on-layer-primary'],
                 height=32,
                 font=dict(
@@ -172,6 +175,7 @@ def generate_table(filtered_data, leaderboard_data, selected_sector):
                 values=[
                     filtered_leaderboard['rank'],
                     filtered_leaderboard['name'],
+                    filtered_leaderboard['car'],
                     round(filtered_leaderboard['s1'], 3),
                     round(filtered_leaderboard['s2'], 3),
                     round(filtered_leaderboard['s3'], 3),
@@ -179,7 +183,7 @@ def generate_table(filtered_data, leaderboard_data, selected_sector):
                     filtered_leaderboard['lap_delta'].round(3),
                     filtered_leaderboard['filter_delta'].round(3)
                 ],
-                align=['left', 'left', 'right', 'right', 'right', 'right'],
+                align=['left', 'left', 'left', 'right', 'right', 'right', 'right'],
                 fill_color=theme['layer'],
                 height=32,
                 font=dict(
@@ -188,7 +192,7 @@ def generate_table(filtered_data, leaderboard_data, selected_sector):
                     family='Helvetica'
                 )
             ),
-            columnwidth=[1, 5, 2,2,2,2,2],
+            columnwidth=[1, 3, 2, 1, 1, 1, 1, 1, 1],
         )
     )
     leaderboard_table.update_layout(
@@ -206,9 +210,10 @@ def generate_table(filtered_data, leaderboard_data, selected_sector):
     Output('leaderboard-hist', 'figure'),
     Input('leaderboard-data', 'data'),
     Input('filtered-data', 'data'),
-    Input('sector-select', 'value')
+    Input('sector-select', 'value'),
+    Input('driver-select', 'value')
 )
-def generate_histogram(leaderboard_data, filtered_data, selected_sector):
+def generate_histogram(leaderboard_data, filtered_data, selected_sector, selected_driver):
     leaderboard = pd.read_json(leaderboard_data, orient='split')
     filtered_leaderboard = pd.read_json(filtered_data, orient='split')
     
@@ -216,13 +221,31 @@ def generate_histogram(leaderboard_data, filtered_data, selected_sector):
     if selected_sector:
         col = 's' + str(selected_sector) + '_delta'
 
-    fig = go.Figure()
+    if len(filtered_leaderboard) == 0:
+        x_max = math.ceil(max(leaderboard[col]*2))/2
+        nbins = int(x_max*2)
+        total_colors = nbins*[theme['on-layer-primary']]
+        filter_colors = nbins*[theme['on-layer-primary']]
+        if selected_driver:
+            driver_delta = leaderboard[leaderboard['name']==selected_driver][col].values[0]
+            print(driver_delta)     
+            highlight_index = int(round(driver_delta*2))   
+            total_colors[highlight_index] = theme['interactive']
 
-    # Histogram of all cars
-    if len(filtered_leaderboard) > 0:
-        total_color = theme['on-layer-secondary']
     else:
-        total_color = theme['on-layer-primary']
+        x_max = math.ceil(max(filtered_leaderboard[col]*2))/2
+        nbins = int(x_max*2)
+        total_colors = nbins*[theme['on-layer-secondary']]
+        filter_colors = nbins*[theme['on-layer-primary']]
+        if selected_driver:
+            try:
+                driver_delta = filtered_leaderboard[filtered_leaderboard['name']==selected_driver][col].values[0]
+                highlight_index = int(round(driver_delta*2))   
+                filter_colors[highlight_index] = theme['interactive']
+            except:
+                None
+
+    fig = go.Figure()
 
     total_hist = go.Histogram(
         x = leaderboard[col],
@@ -231,7 +254,7 @@ def generate_histogram(leaderboard_data, filtered_data, selected_sector):
             size=0.5,
         ),
         marker=dict(
-            color=total_color,
+            color=total_colors,
         )
     )
 
@@ -244,9 +267,12 @@ def generate_histogram(leaderboard_data, filtered_data, selected_sector):
             size=0.5,
         ),
         marker=dict(
-            color=theme['on-layer-primary']
+            color=filter_colors,
         )
     )
+
+    
+
 
     fig.add_trace(total_hist)
     fig.add_trace(filtered_hist)
