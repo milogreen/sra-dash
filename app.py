@@ -4,6 +4,7 @@ import plotly.graph_objects as go
 import json
 
 app = Dash(__name__)
+server = app.server
 
 theme = {
     "background": "#fdf6e3",
