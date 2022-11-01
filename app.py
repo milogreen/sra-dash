@@ -127,7 +127,7 @@ def filter_data(base_data, selected_sector, selected_car):
     if selected_car:
         filtered_leaderboard = filtered_leaderboard[filtered_leaderboard['car']==selected_car]
     filtered_leaderboard['filtered_delta'] = filtered_leaderboard[col] - min(filtered_leaderboard[col])
-    
+    filtered_leaderboard = filtered_leaderboard.reset_index(drop=True)
     return leaderboard.to_json(orient='split'), filtered_leaderboard.to_json(orient='split')
 
 
@@ -153,10 +153,14 @@ def set_options(leaderboard_data, filtered_data):
 )
 def generate_table(filtered_data):
     filtered_leaderboard = pd.read_json(filtered_data, orient='split')
+
+    # Add plus signs to delta columns
     lap_delta = '+' + filtered_leaderboard['lap_delta'].round(3).astype(str)
-    lap_delta[0] = filtered_leaderboard['lap_delta'][0].round(3)
+    lap_delta[0] = filtered_leaderboard.loc[0, 'lap_delta'].round(3)
     filtered_delta = '+' + filtered_leaderboard['filtered_delta'].round(3).astype(str)
-    filtered_delta[0] = filtered_leaderboard['filtered_delta'][0].round(3)
+    filtered_delta[0] = filtered_leaderboard.loc[0, 'filtered_delta'].round(3)
+
+    # Generate table
     leaderboard_table = go.Figure(
         data=go.Table(
             header=dict(
