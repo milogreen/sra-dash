@@ -1,6 +1,7 @@
 import pandas as pd
 import math
 import numpy as np
+from scipy import stats
 from dash import Dash, html, dcc, Input, Output
 import plotly.graph_objects as go
 import json
@@ -16,6 +17,8 @@ theme = {
     "on-layer-primary": "#586e75",
     "on-layer-secondary": "#839496",
     "interactive": "#268bd2",
+    "positive": "#859900",
+    "negative": "#dc322f"
 }
 
 app.layout = html.Div(children=[
@@ -103,6 +106,33 @@ def get_leaderboard(selected_leaderboard, track="paul_ricard"):
     leaderboard['s2_delta'] = leaderboard['s2'] - leaderboard['s2'].min()
     leaderboard['s3_delta'] = leaderboard['s3'] - leaderboard['s3'].min()
     leaderboard['lap_string'] = leaderboard['lap_string'].str[0:8]
+
+    leaderboard['lap_pct'] = 100 - stats.percentileofscore(leaderboard['lap_time'], leaderboard['lap_time'])
+    leaderboard['s1_pct'] = 100 - stats.percentileofscore(leaderboard['s1'], leaderboard['s1'])
+    leaderboard['s2_pct'] = 100 - stats.percentileofscore(leaderboard['s2'], leaderboard['s2'])
+    leaderboard['s3_pct'] = 100 - stats.percentileofscore(leaderboard['s3'], leaderboard['s3'])
+
+    leaderboard['s1_fill'] = theme['layer']
+    leaderboard['s1_text'] = theme['on-layer-primary']
+    leaderboard.loc[leaderboard['s1_pct']-leaderboard['lap_pct'] >= 10, 's1_fill'] = theme['positive']
+    leaderboard.loc[leaderboard['s1_pct']-leaderboard['lap_pct'] >= 10, 's1_text'] = theme['layer']
+    leaderboard.loc[leaderboard['lap_pct']-leaderboard['s1_pct'] >= 10, 's1_fill'] = theme['negative']
+    leaderboard.loc[leaderboard['lap_pct']-leaderboard['s1_pct'] >= 10, 's1_text'] = theme['layer']
+
+    leaderboard['s2_fill'] = theme['layer']
+    leaderboard['s2_text'] = theme['on-layer-primary']
+    leaderboard.loc[leaderboard['s2_pct']-leaderboard['lap_pct'] >= 10, 's2_fill'] = theme['positive']
+    leaderboard.loc[leaderboard['s2_pct']-leaderboard['lap_pct'] >= 10, 's2_text'] = theme['layer']
+    leaderboard.loc[leaderboard['lap_pct']-leaderboard['s2_pct'] >= 10, 's2_fill'] = theme['negative']
+    leaderboard.loc[leaderboard['lap_pct']-leaderboard['s2_pct'] >= 10, 's2_text'] = theme['layer']
+
+    leaderboard['s3_fill'] = theme['layer']
+    leaderboard['s3_text'] = theme['on-layer-primary']
+    leaderboard.loc[leaderboard['s3_pct']-leaderboard['lap_pct'] >= 10, 's3_fill'] = theme['positive']
+    leaderboard.loc[leaderboard['s3_pct']-leaderboard['lap_pct'] >= 10, 's3_text'] = theme['layer']
+    leaderboard.loc[leaderboard['lap_pct']-leaderboard['s3_pct'] >= 10, 's3_fill'] = theme['positive']
+    leaderboard.loc[leaderboard['lap_pct']-leaderboard['s3_pct'] >= 10, 's3_text'] = theme['layer']
+
     leaderboard = leaderboard.sort_values('lap_delta')
     return leaderboard.to_json(orient='split')
 
@@ -164,7 +194,7 @@ def generate_table(filtered_data):
     leaderboard_table = go.Figure(
         data=go.Table(
             header=dict(
-                values=['Rank', 'Name', 'Car', 'Sector 1', 'Sector 2', 'Sector 3', 'Lap time', 'Lap Delta', 'Filtered Delta'],
+                values=['Rank', 'Name', 'Car', 'Sector 1', 'Sector 2', 'Sector 3', 'Lap time', 'Lap Delta', 'Percentile'],
                 align=['left', 'left', 'left', 'right', 'right', 'right', 'right'],
                 fill_color=theme['on-layer-primary'],
                 height=32,
@@ -184,14 +214,22 @@ def generate_table(filtered_data):
                     round(filtered_leaderboard['s3'], 3),
                     filtered_leaderboard['lap_string'],
                     lap_delta,
-                    filtered_delta
+                    filtered_leaderboard['lap_pct'].round(3),
                 ],
                 align=['left', 'left', 'left', 'right', 'right', 'right', 'right'],
-                fill_color=theme['layer'],
+                fill_color=[
+                    theme['layer'], theme['layer'], theme['layer'], 
+                    filtered_leaderboard['s1_fill'], filtered_leaderboard['s2_fill'], filtered_leaderboard['s3_fill'], 
+                    theme['layer'], theme['layer'], theme['layer']
+                ],
                 height=32,
                 font=dict(
                     size=14,
-                    color=theme['on-layer-primary'],
+                    color=[
+                        theme['on-layer-primary'], theme['on-layer-primary'], theme['on-layer-primary'],
+                        filtered_leaderboard['s1_text'], filtered_leaderboard['s2_text'], filtered_leaderboard['s3_text'], 
+                        theme['on-layer-primary'], theme['on-layer-primary'], theme['on-layer-primary']
+                    ],
                     family='Helvetica'
                 )
             ),
