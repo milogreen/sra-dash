@@ -42,9 +42,14 @@ app.layout = html.Div(children=[
         html.Div(children=[
             html.Label('Sector'),
             dcc.Dropdown(
-            ['1', '2', '3'],
-            id='sector-select'
-        )], className='select-container', style={'flex': 1}),
+                options={
+                    's1_delta': '1', 
+                    's2_delta': '2', 
+                    's3_delta': '3',
+                },
+                id='sector-select'
+            )
+        ], className='select-container', style={'flex': 1}),
         html.Div(children=[
             html.Label('Car'),
             dcc.Dropdown(
@@ -64,6 +69,7 @@ app.layout = html.Div(children=[
     dcc.Graph(id='leaderboard-table'),
 
     # Data
+    dcc.Store(id='base-data'),
     dcc.Store(id='leaderboard-data'),
     dcc.Store(id='filtered-data')
 ])
@@ -71,7 +77,7 @@ app.layout = html.Div(children=[
 
 # Get leaderboard for selected track
 @app.callback(
-    Output('leaderboard-data', 'data'),
+    Output('base-data', 'data'),
     Input('leaderboard-select', 'value'),
     Input('track-select', 'value'),
 )
@@ -97,30 +103,32 @@ def get_leaderboard(selected_leaderboard, track="paul_ricard"):
     leaderboard['s2_delta'] = leaderboard['s2'] - leaderboard['s2'].min()
     leaderboard['s3_delta'] = leaderboard['s3'] - leaderboard['s3'].min()
     leaderboard['lap_string'] = leaderboard['lap_string'].str[0:8]
+    leaderboard = leaderboard.sort_values('lap_delta')
     return leaderboard.to_json(orient='split')
 
 
 # Filter leaderboard based on car and sector selections
 @app.callback(
+    Output('leaderboard-data', 'data'),
     Output('filtered-data', 'data'),
-    Input('leaderboard-data', 'data'),
-    Input('car-select', 'value'),
+    Input('base-data', 'data'),
     Input('sector-select', 'value'),
+    Input('car-select', 'value'),
 )
-def filter_data(leaderboard_data, selected_car, selected_sector):
-    leaderboard = pd.read_json(leaderboard_data, orient='split')
-    filtered_leaderboard = leaderboard
+def filter_data(base_data, selected_sector, selected_car):
+    leaderboard = pd.read_json(base_data, orient='split')
 
-    if selected_car:
-        filtered_leaderboard = leaderboard[leaderboard['car']==selected_car]
-
-    col = 'lap_time'
+    col = 'lap_delta'
     if selected_sector:
-        col = 's' + str(selected_sector) + '_delta'
+        col = selected_sector
+        leaderboard = leaderboard.sort_values(col)
     
-    filtered_leaderboard.loc[:, 'filter_delta'] = filtered_leaderboard[col] - min(filtered_leaderboard[col])
+    filtered_leaderboard = leaderboard
+    if selected_car:
+        filtered_leaderboard = filtered_leaderboard[filtered_leaderboard['car']==selected_car]
+    filtered_leaderboard['filtered_delta'] = filtered_leaderboard[col] - min(filtered_leaderboard[col])
     
-    return filtered_leaderboard.to_json(orient='split')
+    return leaderboard.to_json(orient='split'), filtered_leaderboard.to_json(orient='split')
 
 
 # Get options for dropdowns
@@ -142,22 +150,13 @@ def set_options(leaderboard_data, filtered_data):
 @app.callback(
     Output('leaderboard-table', 'figure'),
     Input('filtered-data', 'data'),
-    Input('leaderboard-data', 'data'),
-    Input('sector-select', 'value')
 )
-def generate_table(filtered_data, leaderboard_data, selected_sector):
+def generate_table(filtered_data):
     filtered_leaderboard = pd.read_json(filtered_data, orient='split')
-
-    if len(filtered_leaderboard) < 1:
-        filtered_leaderboard = pd.read_json(leaderboard_data, orient='split')
-
-    col = 'lap_delta'
-    
-    if selected_sector:
-        col = 's' + str(selected_sector) + '_delta'
-
-    filtered_leaderboard = filtered_leaderboard.sort_values(col)
-
+    lap_delta = '+' + filtered_leaderboard['lap_delta'].round(3).astype(str)
+    lap_delta[0] = filtered_leaderboard['lap_delta'][0].round(3)
+    filtered_delta = '+' + filtered_leaderboard['filtered_delta'].round(3).astype(str)
+    filtered_delta[0] = filtered_leaderboard['filtered_delta'][0].round(3)
     leaderboard_table = go.Figure(
         data=go.Table(
             header=dict(
@@ -180,8 +179,8 @@ def generate_table(filtered_data, leaderboard_data, selected_sector):
                     round(filtered_leaderboard['s2'], 3),
                     round(filtered_leaderboard['s3'], 3),
                     filtered_leaderboard['lap_string'],
-                    filtered_leaderboard['lap_delta'].round(3),
-                    filtered_leaderboard['filter_delta'].round(3)
+                    lap_delta,
+                    filtered_delta
                 ],
                 align=['left', 'left', 'left', 'right', 'right', 'right', 'right'],
                 fill_color=theme['layer'],
@@ -219,28 +218,20 @@ def generate_histogram(leaderboard_data, filtered_data, selected_sector, selecte
     
     col = 'lap_delta'
     if selected_sector:
-        col = 's' + str(selected_sector) + '_delta'
+        col = selected_sector
+
     x_max = round(max(leaderboard[col]*2))/2
     nbins = int(x_max*2)+1
 
-    if len(filtered_leaderboard) == 0:
-        total_colors = nbins*[theme['on-layer-primary']]
-        filter_colors = nbins*[theme['on-layer-primary']]
-        if selected_driver:
-            driver_delta = leaderboard[leaderboard['name']==selected_driver][col].values[0]  
+    total_colors = nbins*[theme['on-layer-secondary']]
+    filter_colors = nbins*[theme['on-layer-primary']]
+    if selected_driver:
+        try:
+            driver_delta = filtered_leaderboard[filtered_leaderboard['name']==selected_driver][col].values[0]
             highlight_index = int(round(driver_delta*2))   
-            total_colors[highlight_index] = theme['interactive']
-
-    else:
-        total_colors = nbins*[theme['on-layer-secondary']]
-        filter_colors = nbins*[theme['on-layer-primary']]
-        if selected_driver:
-            try:
-                driver_delta = filtered_leaderboard[filtered_leaderboard['name']==selected_driver][col].values[0]
-                highlight_index = int(round(driver_delta*2))   
-                filter_colors[highlight_index] = theme['interactive']
-            except:
-                None
+            filter_colors[highlight_index] = theme['interactive']
+        except:
+            None
 
     fig = go.Figure()
 
@@ -255,7 +246,6 @@ def generate_histogram(leaderboard_data, filtered_data, selected_sector, selecte
         )
     )
 
-    
     # Filtered histogram
     filtered_hist = go.Histogram(
         x = filtered_leaderboard[col],
@@ -267,9 +257,6 @@ def generate_histogram(leaderboard_data, filtered_data, selected_sector, selecte
             color=filter_colors,
         )
     )
-
-    
-
 
     fig.add_trace(total_hist)
     fig.add_trace(filtered_hist)
